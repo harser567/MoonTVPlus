@@ -7,6 +7,7 @@ import { ArrowDownWideNarrow, ArrowUpWideNarrow } from 'lucide-react';
 
 import { getAllMangaReadRecords, saveMangaReadRecord } from '@/lib/db.client';
 import type { MangaChapter, MangaDetail, MangaReadRecord } from '@/lib/manga.types';
+import { processImageUrl } from '@/lib/utils';
 
 import ProxyImage from '@/components/ProxyImage';
 
@@ -17,6 +18,7 @@ const READ_MODE_STORAGE_KEY = 'mangaReadMode';
 const SCALE_MODE_STORAGE_KEY = 'mangaScaleMode';
 const PAGE_GAP_STORAGE_KEY = 'mangaPageGap';
 const SAVE_INTERVAL_MS = 10000;
+const PRELOAD_PAGE_COUNT = 5;
 
 const READ_MODE_OPTIONS: Array<{ value: ReadMode; label: string }> = [
   { value: 'single', label: '单页' },
@@ -98,6 +100,7 @@ export default function MangaReadPage() {
   const previousReadModeRef = useRef<ReadMode>('vertical');
   const requestVerticalPageSyncRef = useRef<(() => void) | null>(null);
   const currentVerticalPageIndexRef = useRef(0);
+  const preloadedImageUrlsRef = useRef<Set<string>>(new Set());
 
   const getCurrentVerticalPageIndex = () => {
     if (!verticalPageRefs.current.length) return 0;
@@ -119,6 +122,17 @@ export default function MangaReadPage() {
 
   const handleVerticalImageLoad = () => {
     requestVerticalPageSyncRef.current?.();
+  };
+
+  const getPreloadAnchorPage = () => (
+    readMode === 'vertical' ? currentVerticalPageIndexRef.current : activePage
+  );
+
+  const getImageLoadingStrategy = (index: number): 'eager' | 'lazy' => {
+    const anchorPage = getPreloadAnchorPage();
+    return index >= Math.max(anchorPage - 1, 0) && index <= anchorPage + PRELOAD_PAGE_COUNT
+      ? 'eager'
+      : 'lazy';
   };
 
   useEffect(() => {
@@ -206,6 +220,7 @@ export default function MangaReadPage() {
   useEffect(() => {
     setActivePage(0);
     restoredChapterKeyRef.current = null;
+    preloadedImageUrlsRef.current.clear();
   }, [chapterId]);
 
   useEffect(() => {
@@ -394,6 +409,23 @@ export default function MangaReadPage() {
   }, [activePage, chapterId, chapterName, cover, mangaId, pages.length, readMode, sourceId, sourceName, title]);
 
   useEffect(() => {
+    if (typeof window === 'undefined' || !pages.length) return;
+
+    const anchorPage = getPreloadAnchorPage();
+    const preloadTargets = pages.slice(anchorPage + 1, anchorPage + 1 + PRELOAD_PAGE_COUNT);
+
+    preloadTargets.forEach((page) => {
+      const resolvedUrl = processImageUrl(page);
+      if (!resolvedUrl || preloadedImageUrlsRef.current.has(resolvedUrl)) return;
+
+      const img = new window.Image();
+      img.decoding = 'async';
+      img.src = resolvedUrl;
+      preloadedImageUrlsRef.current.add(resolvedUrl);
+    });
+  }, [activePage, pages, readMode]);
+
+  useEffect(() => {
     if (!mangaId || !sourceId || !chapterId) return;
 
     const flushPendingRecord = () => {
@@ -576,12 +608,12 @@ export default function MangaReadPage() {
 
   const imageClassName = useMemo(() => {
     if (scaleMode === 'original') {
-      return 'mx-auto h-auto w-auto max-w-none object-none';
+      return 'block mx-auto h-auto w-auto max-w-none object-none';
     }
     if (readMode === 'single' || readMode === 'double') {
-      return 'mx-auto max-h-[calc(100vh-8rem)] w-auto max-w-full object-contain';
+      return 'block h-auto w-full object-contain sm:mx-auto sm:max-h-[calc(100vh-8rem)] sm:w-auto sm:max-w-full';
     }
-    return 'h-auto w-full object-contain';
+    return 'block h-auto w-full object-contain';
   }, [readMode, scaleMode]);
 
   const handleReaderClick = (event: MouseEvent<HTMLDivElement>) => {
@@ -742,7 +774,7 @@ export default function MangaReadPage() {
       )}
 
       <div
-        className='relative min-h-[calc(100vh-5rem)] select-none px-2 py-3 sm:px-3'
+        className='relative min-h-[calc(100vh-5rem)] select-none px-0 py-3 sm:px-3'
         onClick={handleReaderClick}
       >
         {showChapterComplete && (
@@ -812,6 +844,7 @@ export default function MangaReadPage() {
                   originalSrc={page}
                   alt={`${chapterName}-${index + 1}`}
                   className={imageClassName}
+                  loading={getImageLoadingStrategy(index)}
                   onLoad={handleVerticalImageLoad}
                 />
               </div>
@@ -824,9 +857,14 @@ export default function MangaReadPage() {
             style={{ gap: `${pageGap}px` }}
           >
             {pages.map((page, index) => (
-              <div key={`${page}-${index}`} className='flex min-w-full snap-center items-center justify-center px-1'>
+                <div key={`${page}-${index}`} className='flex min-w-full snap-center items-center justify-center px-1'>
                   <div className='w-full overflow-hidden bg-gray-100 shadow-sm dark:bg-gray-900'>
-                  <ProxyImage originalSrc={page} alt={`${chapterName}-${index + 1}`} className={imageClassName} />
+                  <ProxyImage
+                    originalSrc={page}
+                    alt={`${chapterName}-${index + 1}`}
+                    className={imageClassName}
+                    loading={getImageLoadingStrategy(index)}
+                  />
                 </div>
               </div>
             ))}
@@ -843,6 +881,7 @@ export default function MangaReadPage() {
                     originalSrc={page}
                     alt={`${chapterName}-${activePage + index + 1}`}
                     className={imageClassName}
+                    loading='eager'
                   />
                 </div>
               ))}

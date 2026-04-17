@@ -151,8 +151,10 @@ export default function MangaLayout({ children }: MangaLayoutProps) {
       </header>
 
       <main
-        className={`mx-auto max-w-7xl px-3 pt-20 sm:px-6 sm:pt-24 ${
-          isReadingPage ? 'pb-24 sm:pb-28 lg:pb-10' : 'pb-[calc(5rem+env(safe-area-inset-bottom))] sm:pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-10'
+        className={`mx-auto max-w-7xl pt-20 sm:pt-24 ${
+          isReadingPage
+            ? 'px-0 pb-24 sm:px-0 sm:pb-28 lg:pb-10'
+            : 'px-3 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-10'
         }`}
       >
         {children}
