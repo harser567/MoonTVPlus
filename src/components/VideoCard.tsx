@@ -1039,10 +1039,10 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
                 e.preventDefault();
                 return false;
               }}
-            >
-              {/* 集数显示 */}
-              <div
-                className='bg-black/60 text-white text-[9px] sm:text-xs font-medium px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow-md transition-all duration-300 ease-out group-hover:scale-110 backdrop-blur-sm flex items-center justify-center'
+              >
+                {/* 集数显示 */}
+                <div
+                  className='bg-black/60 text-white text-[9px] sm:text-xs font-medium px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow-md transition-all duration-300 ease-out group-hover:scale-110 backdrop-blur-sm flex items-center justify-center'
                 style={{
                   WebkitUserSelect: 'none',
                   userSelect: 'none',
@@ -1052,9 +1052,11 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
                   e.preventDefault();
                   return false;
                 }}
-              >
-                共{actualEpisodes}集
-              </div>
+                >
+                {currentEpisode !== undefined && currentEpisode !== null
+                  ? `${currentEpisode}/${actualEpisodes}`
+                  : `共${actualEpisodes}集`}
+                </div>
 
               {/* 年份显示 */}
               {displayYear && (
